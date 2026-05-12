@@ -1,5 +1,7 @@
 # ICC Lab Gamut Visualizer
 
+**🔗 Live demo:** https://rcongdo.github.io/icc-lab-gamut-visualizer/
+
 A self-contained browser app for visualizing ICC profile gamuts in CIE Lab space.
 
 ## Features
@@ -11,6 +13,14 @@ A self-contained browser app for visualizing ICC profile gamuts in CIE Lab space
 - Includes built-in sRGB, Display P3, Adobe RGB, and Rec. 2020 presets.
 
 ## Run
+
+## Try It
+
+Open the live demo:
+
+https://rcongdo.github.io/icc-lab-gamut-visualizer/
+
+## Local Usage
 
 Serve the folder with any static web server:
 
