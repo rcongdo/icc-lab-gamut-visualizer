@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ICC Lab Gamut Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="toolbar" aria-label="Profile controls">
+        <div class="brand">
+          <span class="mark" aria-hidden="true"></span>
+          <div>
+            <h1>ICC Lab Visualizer</h1>
+            <p id="profileSummary">sRGB IEC61966-2.1 preview in CIE Lab</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="control">
+            <span>Profile</span>
+            <select id="presetSelect">
+              <option value="srgb">sRGB IEC61966-2.1</option>
+              <option value="display-p3">Display P3</option>
+              <option value="adobe-rgb">Adobe RGB (1998)</option>
+              <option value="rec2020">Rec. 2020</option>
+            </select>
+          </label>
+
+          <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile">
+            <input id="profileInput" type="file" accept=".icc,.icm,application/vnd.iccprofile">
+            <span>Load ICC</span>
+          </label>
+
+          <label class="control compact">
+            <span>Detail</span>
+            <input id="detailRange" type="range" min="9" max="33" step="2" value="23">
+          </label>
+
+          <div class="segmented" role="radiogroup" aria-label="Render mode">
+            <button id="surfaceMode" class="active" type="button" aria-pressed="true">Surface</button>
+            <button id="pointsMode" type="button" aria-pressed="false">Points</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="viewer-shell">
+        <canvas id="gamutCanvas" aria-label="Rotatable 3D CIE Lab gamut visualization"></canvas>
+        <div class="axis-labels" aria-hidden="true">
+          <span id="labelL">L*</span>
+          <span id="labelPosA">+a*</span>
+          <span id="labelNegA">-a*</span>
+          <span id="labelPosB">+b*</span>
+          <span id="labelNegB">-b*</span>
+        </div>
+        <div class="hud">
+          <div>
+            <strong id="profileName">sRGB IEC61966-2.1</strong>
+            <span id="profileMeta">RGB matrix/TRC profile</span>
+          </div>
+          <dl>
+            <div><dt>L*</dt><dd id="lRange">0-100</dd></div>
+            <div><dt>a*</dt><dd id="aRange">-86-98</dd></div>
+            <div><dt>b*</dt><dd id="bRange">-108-95</dd></div>
+          </dl>
+        </div>
+        <div class="legend" aria-hidden="true">
+          <span>L*</span>
+          <span>a*</span>
+          <span>b*</span>
+        </div>
+        <div id="status" class="status" role="status"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
