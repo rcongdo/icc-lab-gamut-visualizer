@@ -13,25 +13,62 @@
           <span class="mark" aria-hidden="true"></span>
           <div>
             <h1>ICC Lab Visualizer</h1>
-            <p id="profileSummary">sRGB IEC61966-2.1 preview in CIE Lab</p>
+            <p id="profileSummary">CGATS21 CRPC-6 shown as a rotatable CIE Lab gamut</p>
           </div>
         </div>
 
         <div class="controls">
-          <label class="control">
-            <span>Profile</span>
-            <select id="presetSelect">
-              <option value="srgb">sRGB IEC61966-2.1</option>
-              <option value="display-p3">Display P3</option>
-              <option value="adobe-rgb">Adobe RGB (1998)</option>
-              <option value="rec2020">Rec. 2020</option>
-            </select>
-          </label>
+          <div class="profile-controls">
+            <label class="control">
+              <span>Profile 1</span>
+              <select id="presetSelect1"></select>
+            </label>
 
-          <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile">
-            <input id="profileInput" type="file" accept=".icc,.icm,application/vnd.iccprofile">
-            <span>Load ICC</span>
-          </label>
+            <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile for Profile 1">
+              <input id="profileInput1" type="file" accept=".icc,.icm,application/vnd.iccprofile">
+              <span>Load ICC</span>
+            </label>
+
+            <label class="control mini">
+              <span>Opacity</span>
+              <input id="opacityRange1" type="range" min="0.05" max="1" step="0.05" value="0.5">
+            </label>
+
+            <label class="toggle-control" title="Use a solid color for Profile 1">
+              <input id="solidToggle1" type="checkbox">
+              <span>Solid</span>
+            </label>
+
+            <label class="color-control" title="Profile 1 solid color">
+              <input id="solidColor1" type="color" value="#42c7b8">
+            </label>
+          </div>
+
+          <div class="profile-controls">
+            <label class="control">
+              <span>Profile 2</span>
+              <select id="presetSelect2"></select>
+            </label>
+
+            <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile for Profile 2">
+              <input id="profileInput2" type="file" accept=".icc,.icm,application/vnd.iccprofile">
+              <span>Load ICC</span>
+            </label>
+
+            <label class="control mini">
+              <span>Opacity</span>
+              <input id="opacityRange2" type="range" min="0.05" max="1" step="0.05" value="0.5">
+            </label>
+
+            <label class="toggle-control" title="Use a solid color for Profile 2">
+              <input id="solidToggle2" type="checkbox">
+              <span>Solid</span>
+            </label>
+
+            <label class="color-control" title="Profile 2 solid color">
+              <input id="solidColor2" type="color" value="#e4b84b">
+            </label>
+          </div>
 
           <label class="control compact">
             <span>Detail</span>
@@ -55,9 +92,17 @@
           <span id="labelNegB">-b*</span>
         </div>
         <div class="hud">
-          <div>
-            <strong id="profileName">sRGB IEC61966-2.1</strong>
-            <span id="profileMeta">RGB matrix/TRC profile</span>
+          <div class="profile-readouts">
+            <div>
+              <strong id="profileName1">CGATS21 CRPC-6</strong>
+              <span id="profileMeta1">CMYK reference profile from published CRPC Lab anchors</span>
+              <span id="profileVolume1">Volume: calculating...</span>
+            </div>
+            <div id="profileReadout2">
+              <strong id="profileName2">None</strong>
+              <span id="profileMeta2">Comparison disabled</span>
+              <span id="profileVolume2">Volume: --</span>
+            </div>
           </div>
           <dl>
             <div><dt>L*</dt><dd id="lRange">0-100</dd></div>

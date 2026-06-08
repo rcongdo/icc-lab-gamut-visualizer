@@ -1,14 +1,43 @@
 "use strict";
 
 const canvas = document.getElementById("gamutCanvas");
-const presetSelect = document.getElementById("presetSelect");
-const profileInput = document.getElementById("profileInput");
+const presetSelects = [
+  document.getElementById("presetSelect1"),
+  document.getElementById("presetSelect2")
+];
+const profileInputs = [
+  document.getElementById("profileInput1"),
+  document.getElementById("profileInput2")
+];
+const opacityRanges = [
+  document.getElementById("opacityRange1"),
+  document.getElementById("opacityRange2")
+];
+const solidToggles = [
+  document.getElementById("solidToggle1"),
+  document.getElementById("solidToggle2")
+];
+const solidColorInputs = [
+  document.getElementById("solidColor1"),
+  document.getElementById("solidColor2")
+];
 const detailRange = document.getElementById("detailRange");
 const surfaceMode = document.getElementById("surfaceMode");
 const pointsMode = document.getElementById("pointsMode");
 const statusEl = document.getElementById("status");
-const profileNameEl = document.getElementById("profileName");
-const profileMetaEl = document.getElementById("profileMeta");
+const profileNameEls = [
+  document.getElementById("profileName1"),
+  document.getElementById("profileName2")
+];
+const profileMetaEls = [
+  document.getElementById("profileMeta1"),
+  document.getElementById("profileMeta2")
+];
+const profileVolumeEls = [
+  document.getElementById("profileVolume1"),
+  document.getElementById("profileVolume2")
+];
+const profileReadout2 = document.getElementById("profileReadout2");
 const profileSummaryEl = document.getElementById("profileSummary");
 const lRangeEl = document.getElementById("lRange");
 const aRangeEl = document.getElementById("aRange");
@@ -25,7 +54,30 @@ const D50 = [0.96422, 1, 0.82521];
 const LAB_AXIS_SCALE = 120;
 const L_AXIS_MIN = (0 - 50) / LAB_AXIS_SCALE;
 const L_AXIS_MAX = (100 - 50) / LAB_AXIS_SCALE;
+const CRPC_REFERENCE_DATA = {
+  1: { paper: [85, 1, 5], c: [59, -24, -26], m: [56, 48, 0], y: [80, -2, 60], k: [37, 1, 4], volume: 84280 },
+  2: { paper: [87, 0, 3], c: [57, -28, -34], m: [52, 58, -2], y: [82, -2, 72], k: [30, 1, 2], volume: 151311 },
+  3: { paper: [95, 1, -4], c: [60, -26, -44], m: [56, 61, -2], y: [89, -3, 76], k: [32, 1, 1], volume: 165764 },
+  4: { paper: [89, 0, 3], c: [55, -36, -38], m: [47, 66, -3], y: [83, -3, 83], k: [23, 1, 2], volume: 253711 },
+  5: { paper: [92, 0, 0], c: [57, -37, -44], m: [48, 71, -4], y: [87, -4, 88], k: [19, 0, 1], volume: 331416 },
+  6: { paper: [95, 1, -4], c: [56, -37, -50], m: [48, 75, -4], y: [89, -4, 93], k: [16, 0, 0], volume: 389023 },
+  7: { paper: [97, 1, -4], c: [54, -42, -54], m: [47, 78, -10], y: [90, -4, 103], k: [14, 0, 0], volume: 525551 }
+};
 const presets = {
+  "none": {
+    name: "None",
+    meta: "Comparison disabled",
+    space: "NONE",
+    channels: 0,
+    disabled: true
+  },
+  "crpc1": createCrpcReferenceProfile(1),
+  "crpc2": createCrpcReferenceProfile(2),
+  "crpc3": createCrpcReferenceProfile(3),
+  "crpc4": createCrpcReferenceProfile(4),
+  "crpc5": createCrpcReferenceProfile(5),
+  "crpc6": createCrpcReferenceProfile(6),
+  "crpc7": createCrpcReferenceProfile(7),
   "srgb": {
     name: "sRGB IEC61966-2.1",
     meta: "RGB matrix/TRC profile",
@@ -76,9 +128,9 @@ const presets = {
   }
 };
 
-let activeProfile = presets.srgb;
+const presetOrder = ["crpc1", "crpc2", "crpc3", "crpc4", "crpc5", "crpc6", "crpc7", "srgb", "display-p3", "adobe-rgb", "rec2020", "none"];
+let profileSlots;
 let renderMode = "surface";
-let geometry = null;
 let rotationX = -0.32;
 let rotationY = -0.72;
 let zoom = 1.16;
@@ -107,11 +159,14 @@ const program = createProgram(gl, `
   precision mediump float;
   varying vec3 vColor;
   uniform float uAlpha;
+  uniform float uUseSolid;
+  uniform float uDrawPoints;
+  uniform vec3 uSolidColor;
 
   void main() {
     vec2 p = gl_PointCoord - vec2(0.5);
-    if (uAlpha > 0.98 && dot(p, p) > 0.25) discard;
-    gl_FragColor = vec4(vColor, uAlpha);
+    if (uDrawPoints > 0.5 && uAlpha > 0.98 && dot(p, p) > 0.25) discard;
+    gl_FragColor = vec4(mix(vColor, uSolidColor, uUseSolid), uAlpha);
   }
 `);
 
@@ -134,40 +189,65 @@ const lineProgram = createProgram(gl, `
   }
 `);
 
-const buffers = {
-  vertices: gl.createBuffer(),
-  colors: gl.createBuffer(),
-  indices: gl.createBuffer(),
-  points: gl.createBuffer(),
-  pointColors: gl.createBuffer(),
+const axisBuffers = {
   lines: gl.createBuffer(),
   lineColors: gl.createBuffer()
 };
 
+profileSlots = [
+  createProfileSlot(presets.crpc6, "#42c7b8"),
+  createProfileSlot(presets.none, "#e4b84b")
+];
+populateProfileSelects();
+syncVisualControls();
+uploadAxisGeometry();
 buildAndRender();
 requestAnimationFrame(drawLoop);
 
-presetSelect.addEventListener("change", () => {
-  activeProfile = presets[presetSelect.value];
-  profileInput.value = "";
-  buildAndRender();
+presetSelects.forEach((select, index) => {
+  select.addEventListener("change", () => {
+    profileSlots[index].profile = presets[select.value] || profileSlots[index].uploadedProfile || presets.none;
+    profileInputs[index].value = "";
+    buildAndRender();
+  });
 });
 
-profileInput.addEventListener("change", async () => {
-  const file = profileInput.files[0];
-  if (!file) return;
-  try {
-    const buffer = await file.arrayBuffer();
-    activeProfile = parseICCProfile(buffer, file.name);
-    presetSelect.value = "srgb";
-    buildAndRender();
-    showStatus(`Loaded ${activeProfile.name}.`);
-  } catch (error) {
-    showStatus(error.message || "Could not read this ICC profile.", true);
-  }
+profileInputs.forEach((input, index) => {
+  input.addEventListener("change", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const buffer = await file.arrayBuffer();
+      profileSlots[index].profile = parseICCProfile(buffer, file.name);
+      profileSlots[index].uploadedProfile = profileSlots[index].profile;
+      setUploadedOption(index, profileSlots[index].profile.name);
+      buildAndRender();
+      showStatus(`Loaded ${profileSlots[index].profile.name}.`);
+    } catch (error) {
+      showStatus(error.message || "Could not read this ICC profile.", true);
+    }
+  });
 });
 
 detailRange.addEventListener("input", () => buildAndRender());
+opacityRanges.forEach((input, index) => {
+  input.addEventListener("input", () => {
+    profileSlots[index].opacity = Number(input.value);
+    needsDraw = true;
+  });
+});
+solidToggles.forEach((input, index) => {
+  input.addEventListener("change", () => {
+    profileSlots[index].solid = input.checked;
+    needsDraw = true;
+  });
+});
+solidColorInputs.forEach((input, index) => {
+  input.addEventListener("input", () => {
+    profileSlots[index].solidColor = hexToRgb(input.value);
+    needsDraw = true;
+  });
+});
 surfaceMode.addEventListener("click", () => setRenderMode("surface"));
 pointsMode.addEventListener("click", () => setRenderMode("points"));
 
@@ -207,15 +287,27 @@ function setRenderMode(mode) {
 }
 
 function buildAndRender() {
+  return rebuildProfiles();
+}
+
+async function rebuildProfiles() {
   const size = Number(detailRange.value);
-  geometry = sampleProfile(activeProfile, size);
-  uploadGeometry(geometry);
-  updateProfileText(geometry);
+  const token = Symbol("build");
+  buildAndRender.token = token;
+  await Promise.all(profileSlots.map((slot) => resolveSlotProfile(slot)));
+  if (buildAndRender.token !== token) return;
+  profileSlots.forEach((slot, index) => {
+    slot.geometry = slot.renderProfile.disabled ? null : sampleProfile(slot.renderProfile, size);
+    uploadGeometry(slot);
+    updateProfileText(slot, index);
+  });
+  updateCombinedRanges();
+  updateProfileSummary();
   needsDraw = true;
 }
 
 function sampleProfile(profile, size) {
-  return profile.channels === 4 ? sampleCmykProfile(profile, size) : sampleRgbProfile(profile, size);
+  return profile.channels === 3 ? sampleRgbProfile(profile, size) : sampleDeviceProfile(profile, size);
 }
 
 function sampleRgbProfile(profile, size) {
@@ -235,7 +327,7 @@ function sampleRgbProfile(profile, size) {
     const lab = profileToLab(profile, rgb);
     updateRanges(ranges, lab);
     vertices.push(...labToScene(lab));
-    colors.push(...profileToDisplayColor(profile, rgb));
+    colors.push(...profileToDisplayColor(profile, rgb, lab));
     return indexOffset++;
   };
 
@@ -278,7 +370,7 @@ function sampleRgbProfile(profile, size) {
         const rgb = [r / (pointSize - 1), g / (pointSize - 1), b / (pointSize - 1)];
         const lab = profileToLab(profile, rgb);
         pointPositions.push(...labToScene(lab));
-        pointColors.push(...profileToDisplayColor(profile, rgb));
+        pointColors.push(...profileToDisplayColor(profile, rgb, lab));
       }
     }
   }
@@ -296,7 +388,7 @@ function sampleRgbProfile(profile, size) {
   };
 }
 
-function sampleCmykProfile(profile, size) {
+function sampleDeviceProfile(profile, size) {
   const vertices = [];
   const colors = [];
   const indices = [];
@@ -313,7 +405,7 @@ function sampleCmykProfile(profile, size) {
     const lab = profileToLab(profile, device);
     updateRanges(ranges, lab);
     targetPositions.push(...labToScene(lab));
-    targetColors.push(...profileToDisplayColor(profile, device));
+    targetColors.push(...profileToDisplayColor(profile, device, lab));
   };
 
   const addSliceVertex = (device) => {
@@ -321,54 +413,39 @@ function sampleCmykProfile(profile, size) {
     return indexOffset++;
   };
 
-  for (let fixedA = 0; fixedA < 4; fixedA++) {
-    for (let fixedB = fixedA + 1; fixedB < 4; fixedB++) {
-      for (const valueA of [0, 1]) {
-        for (const valueB of [0, 1]) {
-          const free = [0, 1, 2, 3].filter((channel) => channel !== fixedA && channel !== fixedB);
-          const faceStart = indexOffset;
-          for (let y = 0; y < size; y++) {
-            for (let x = 0; x < size; x++) {
-              const device = [0, 0, 0, 0];
-              device[fixedA] = valueA;
-              device[fixedB] = valueB;
-              device[free[0]] = x / (size - 1);
-              device[free[1]] = y / (size - 1);
-              addSliceVertex(device);
-            }
-          }
-          for (let y = 0; y < size - 1; y++) {
-            for (let x = 0; x < size - 1; x++) {
-              const i = faceStart + y * size + x;
-              indices.push(i, i + 1, i + size, i + 1, i + size + 1, i + size);
-            }
+  const channels = profile.channels;
+  const faceSize = channels > 4 ? Math.min(size, 11) : size;
+  for (let freeA = 0; freeA < channels; freeA++) {
+    for (let freeB = freeA + 1; freeB < channels; freeB++) {
+      const fixedChannels = Array.from({ length: channels }, (_, channel) => channel).filter((channel) => channel !== freeA && channel !== freeB);
+      forEachBinaryCombination(fixedChannels.length, (fixedValues) => {
+        const faceStart = indexOffset;
+        for (let y = 0; y < faceSize; y++) {
+          for (let x = 0; x < faceSize; x++) {
+            const device = Array(channels).fill(0);
+            fixedChannels.forEach((channel, index) => {
+              device[channel] = fixedValues[index];
+            });
+            device[freeA] = x / (faceSize - 1);
+            device[freeB] = y / (faceSize - 1);
+            addSliceVertex(device);
           }
         }
-      }
+        for (let y = 0; y < faceSize - 1; y++) {
+          for (let x = 0; x < faceSize - 1; x++) {
+            const i = faceStart + y * faceSize + x;
+            indices.push(i, i + 1, i + faceSize, i + 1, i + faceSize + 1, i + faceSize);
+          }
+        }
+      });
     }
   }
 
-  const pointSize = Math.max(6, Math.min(15, Math.round(size * 0.58)));
-  for (let c = 0; c < pointSize; c++) {
-    for (let m = 0; m < pointSize; m++) {
-      for (let y = 0; y < pointSize; y++) {
-        for (let k = 0; k < pointSize; k++) {
-          if (
-            c !== 0 && m !== 0 && y !== 0 && k !== 0 &&
-            c !== pointSize - 1 && m !== pointSize - 1 && y !== pointSize - 1 && k !== pointSize - 1
-          ) {
-            continue;
-          }
-          pushSample([
-            c / (pointSize - 1),
-            m / (pointSize - 1),
-            y / (pointSize - 1),
-            k / (pointSize - 1)
-          ], pointPositions, pointColors);
-        }
-      }
-    }
-  }
+  const pointSize = channels > 4 ? Math.max(4, Math.min(6, Math.round(size * 0.25))) : Math.max(6, Math.min(15, Math.round(size * 0.58)));
+  forEachGridPoint(channels, pointSize, (device, coordinates) => {
+    if (!coordinates.some((value) => value === 0 || value === pointSize - 1)) return;
+    pushSample(device, pointPositions, pointColors);
+  });
 
   return {
     vertices: new Float32Array(vertices),
@@ -383,14 +460,17 @@ function sampleCmykProfile(profile, size) {
   };
 }
 
-function uploadGeometry(data) {
-  bindArray(buffers.vertices, data.vertices);
-  bindArray(buffers.colors, data.colors);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, data.indices, gl.STATIC_DRAW);
-  bindArray(buffers.points, data.points);
-  bindArray(buffers.pointColors, data.pointColors);
+function uploadGeometry(slot) {
+  if (!slot.geometry) return;
+  bindArray(slot.buffers.vertices, slot.geometry.vertices);
+  bindArray(slot.buffers.colors, slot.geometry.colors);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, slot.buffers.indices);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, slot.geometry.indices, gl.STATIC_DRAW);
+  bindArray(slot.buffers.points, slot.geometry.points);
+  bindArray(slot.buffers.pointColors, slot.geometry.pointColors);
+}
 
+function uploadAxisGeometry() {
   const axisLines = new Float32Array([
     -1.18, 0, 0, 1.18, 0, 0,
     0, 0, -1.18, 0, 0, 1.18,
@@ -401,8 +481,29 @@ function uploadGeometry(data) {
     0.89, 0.72, 0.29, 0.89, 0.72, 0.29,
     0.95, 0.94, 0.89, 0.95, 0.94, 0.89
   ]);
-  bindArray(buffers.lines, axisLines);
-  bindArray(buffers.lineColors, axisColors);
+  bindArray(axisBuffers.lines, axisLines);
+  bindArray(axisBuffers.lineColors, axisColors);
+}
+
+function createProfileSlot(profile, color) {
+  return {
+    profile,
+    renderProfile: profile,
+    uploadedProfile: null,
+    geometry: null,
+    buffers: createGeometryBuffers(),
+    opacity: 0.5,
+    solid: false,
+    solidColor: hexToRgb(color)
+  };
+}
+
+function syncVisualControls() {
+  profileSlots.forEach((slot, index) => {
+    opacityRanges[index].value = String(slot.opacity);
+    solidToggles[index].checked = slot.solid;
+    solidColorInputs[index].value = rgbToHex(slot.solidColor);
+  });
 }
 
 function drawLoop() {
@@ -438,41 +539,55 @@ function draw() {
 
   drawLines(matrix);
 
+  const activeSlots = profileSlots.filter((slot) => slot.geometry);
   if (renderMode === "surface") {
     gl.depthMask(false);
-    drawSurface(matrix);
+    activeSlots.forEach((slot, index) => drawSurface(slot, matrix, index));
     gl.depthMask(true);
   }
-  drawPoints(matrix, renderMode === "points" ? 1 : 0.72);
+  activeSlots.forEach((slot, index) => drawPoints(slot, matrix, renderMode === "points" ? 1 : 0.72, index));
 }
 
-function drawSurface(matrix) {
+function drawSurface(slot, matrix, index) {
   gl.useProgram(program);
-  setAttrib(program, "aPosition", buffers.vertices);
-  setAttrib(program, "aColor", buffers.colors);
+  setAttrib(program, "aPosition", slot.buffers.vertices);
+  setAttrib(program, "aColor", slot.buffers.colors);
   gl.uniformMatrix4fv(gl.getUniformLocation(program, "uMatrix"), false, matrix);
   gl.uniform1f(gl.getUniformLocation(program, "uPointSize"), 1);
-  gl.uniform1f(gl.getUniformLocation(program, "uAlpha"), 0.34);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buffers.indices);
-  gl.drawElements(gl.TRIANGLES, geometry.indexCount, geometry.indices instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
+  gl.uniform1f(gl.getUniformLocation(program, "uDrawPoints"), 0);
+  setProfileUniforms(slot, slot.opacity);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, slot.buffers.indices);
+  gl.drawElements(
+    gl.TRIANGLES,
+    slot.geometry.indexCount,
+    slot.geometry.indices instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT,
+    0
+  );
 }
 
-function drawPoints(matrix, alpha) {
+function drawPoints(slot, matrix, alpha, index) {
   gl.useProgram(program);
-  setAttrib(program, "aPosition", buffers.points);
-  setAttrib(program, "aColor", buffers.pointColors);
+  setAttrib(program, "aPosition", slot.buffers.points);
+  setAttrib(program, "aColor", slot.buffers.pointColors);
   gl.uniformMatrix4fv(gl.getUniformLocation(program, "uMatrix"), false, matrix);
-  gl.uniform1f(gl.getUniformLocation(program, "uPointSize"), renderMode === "points" ? 3.2 : 2.1);
-  gl.uniform1f(gl.getUniformLocation(program, "uAlpha"), alpha);
-  gl.drawArrays(gl.POINTS, 0, geometry.pointCount);
+  gl.uniform1f(gl.getUniformLocation(program, "uPointSize"), renderMode === "points" ? 3.2 : 2.1 + index * 0.4);
+  gl.uniform1f(gl.getUniformLocation(program, "uDrawPoints"), 1);
+  setProfileUniforms(slot, alpha * slot.opacity);
+  gl.drawArrays(gl.POINTS, 0, slot.geometry.pointCount);
 }
 
 function drawLines(matrix) {
   gl.useProgram(lineProgram);
-  setAttrib(lineProgram, "aPosition", buffers.lines);
-  setAttrib(lineProgram, "aColor", buffers.lineColors);
+  setAttrib(lineProgram, "aPosition", axisBuffers.lines);
+  setAttrib(lineProgram, "aColor", axisBuffers.lineColors);
   gl.uniformMatrix4fv(gl.getUniformLocation(lineProgram, "uMatrix"), false, matrix);
   gl.drawArrays(gl.LINES, 0, 6);
+}
+
+function setProfileUniforms(slot, alpha) {
+  gl.uniform1f(gl.getUniformLocation(program, "uAlpha"), clamp(alpha, 0.02, 1));
+  gl.uniform1f(gl.getUniformLocation(program, "uUseSolid"), slot.solid ? 1 : 0);
+  gl.uniform3fv(gl.getUniformLocation(program, "uSolidColor"), new Float32Array(slot.solidColor));
 }
 
 function bindArray(buffer, data) {
@@ -487,13 +602,230 @@ function setAttrib(activeProgram, name, buffer) {
   gl.vertexAttribPointer(location, 3, gl.FLOAT, false, 0, 0);
 }
 
-function updateProfileText(data) {
-  profileNameEl.textContent = activeProfile.name;
-  profileMetaEl.textContent = activeProfile.meta;
-  profileSummaryEl.textContent = `${activeProfile.name} shown as a rotatable CIE Lab gamut`;
-  lRangeEl.textContent = formatRange(data.ranges.l);
-  aRangeEl.textContent = formatRange(data.ranges.a);
-  bRangeEl.textContent = formatRange(data.ranges.b);
+function createGeometryBuffers() {
+  return {
+    vertices: gl.createBuffer(),
+    colors: gl.createBuffer(),
+    indices: gl.createBuffer(),
+    points: gl.createBuffer(),
+    pointColors: gl.createBuffer()
+  };
+}
+
+function populateProfileSelects() {
+  presetSelects.forEach((select, index) => {
+    select.innerHTML = "";
+    presetOrder.forEach((key) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.textContent = presets[key].name;
+      select.appendChild(option);
+    });
+    select.value = index === 0 ? "crpc6" : "none";
+  });
+}
+
+function setUploadedOption(index, name) {
+  const select = presetSelects[index];
+  const value = `uploaded-${index}`;
+  let option = select.querySelector(`option[value="${value}"]`);
+  if (!option) {
+    option = document.createElement("option");
+    option.value = value;
+    select.appendChild(option);
+  }
+  option.textContent = `Loaded: ${name}`;
+  select.value = value;
+}
+
+function createCrpcReferenceProfile(number) {
+  const data = CRPC_REFERENCE_DATA[number];
+  const fallbackProfile = {
+    name: `CGATS21 CRPC-${number}`,
+    meta: "CMYK reference profile from published CRPC Lab anchors",
+    space: "CMYK",
+    channels: 4,
+    referenceVolume: data.volume,
+    transform: (device) => crpcReferenceToLab(data, device)
+  };
+  return {
+    name: `CGATS21 CRPC-${number}`,
+    meta: "Bundled CMYK ICC profile",
+    space: "CMYK",
+    channels: 4,
+    iccPath: `./profiles/CGATS21_CRPC${number}.icc`,
+    fallbackProfile,
+    referenceVolume: data.volume,
+    transform: fallbackProfile.transform
+  };
+}
+
+function crpcReferenceToLab(data, device) {
+  const c = clamp(device[0], 0, 1);
+  const m = clamp(device[1], 0, 1);
+  const y = clamp(device[2], 0, 1);
+  const k = clamp(device[3], 0, 1);
+  const paper = data.paper;
+  const deltas = [data.c, data.m, data.y, data.k].map((anchor) => subtractLab(anchor, paper));
+  const weights = [c, m, y, k].map((value) => 1 - (1 - value) ** 1.08);
+  const lab = paper.slice();
+
+  for (let channel = 0; channel < deltas.length; channel++) {
+    lab[0] += deltas[channel][0] * weights[channel];
+    lab[1] += deltas[channel][1] * weights[channel];
+    lab[2] += deltas[channel][2] * weights[channel];
+  }
+
+  const chromaticMix = 1 - k * 0.72;
+  const redMix = m * y * chromaticMix;
+  const greenBlueMix = c * y * chromaticMix;
+  const blueMix = c * m * chromaticMix;
+  const threeColor = c * m * y * chromaticMix;
+  lab[0] -= 4.2 * (redMix + greenBlueMix + blueMix) + 9.5 * threeColor;
+  lab[1] += 15 * redMix - 10 * greenBlueMix - 3 * blueMix;
+  lab[2] += 12 * redMix + 9 * greenBlueMix - 18 * blueMix;
+
+  return [
+    clamp(lab[0], 0, 100),
+    clamp(lab[1], -128, 127),
+    clamp(lab[2], -128, 127)
+  ];
+}
+
+function subtractLab(a, b) {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+function forEachBinaryCombination(length, callback) {
+  const count = 2 ** length;
+  for (let mask = 0; mask < count; mask++) {
+    const values = [];
+    for (let bit = 0; bit < length; bit++) {
+      values.push((mask >> bit) & 1);
+    }
+    callback(values);
+  }
+}
+
+function forEachGridPoint(channels, steps, callback) {
+  const coordinates = Array(channels).fill(0);
+  const walk = (channel) => {
+    if (channel === channels) {
+      callback(coordinates.map((value) => value / (steps - 1)), coordinates);
+      return;
+    }
+    for (let value = 0; value < steps; value++) {
+      coordinates[channel] = value;
+      walk(channel + 1);
+    }
+  };
+  walk(0);
+}
+
+function updateProfileText(slot, index) {
+  const profile = slot.renderProfile;
+  profileNameEls[index].textContent = slot.profile.name;
+  profileMetaEls[index].textContent = profile.meta;
+  profileVolumeEls[index].textContent = profile.disabled ? "Volume: --" : `Volume: ${formatVolume(profileVolume(profile))} cubic Lab units`;
+  if (index === 1) {
+    profileReadout2.classList.toggle("disabled", profile.disabled);
+  }
+}
+
+function updateProfileSummary() {
+  const active = profileSlots.filter((slot) => !slot.renderProfile.disabled).map((slot) => slot.profile.name);
+  if (!active.length) {
+    profileSummaryEl.textContent = "Choose a profile to visualize in CIE Lab";
+    return;
+  }
+  profileSummaryEl.textContent = active.length > 1
+    ? `${active[0]} compared with ${active[1]} in CIE Lab`
+    : `${active[0]} shown as a rotatable CIE Lab gamut`;
+}
+
+function updateCombinedRanges() {
+  const ranges = {
+    l: [Infinity, -Infinity],
+    a: [Infinity, -Infinity],
+    b: [Infinity, -Infinity]
+  };
+  profileSlots.forEach((slot) => {
+    if (!slot.geometry) return;
+    mergeRange(ranges.l, slot.geometry.ranges.l);
+    mergeRange(ranges.a, slot.geometry.ranges.a);
+    mergeRange(ranges.b, slot.geometry.ranges.b);
+  });
+  lRangeEl.textContent = isFinite(ranges.l[0]) ? formatRange(ranges.l) : "--";
+  aRangeEl.textContent = isFinite(ranges.a[0]) ? formatRange(ranges.a) : "--";
+  bRangeEl.textContent = isFinite(ranges.b[0]) ? formatRange(ranges.b) : "--";
+}
+
+function mergeRange(target, source) {
+  target[0] = Math.min(target[0], source[0]);
+  target[1] = Math.max(target[1], source[1]);
+}
+
+function profileVolume(profile) {
+  if (profile.referenceVolume) {
+    return { value: profile.referenceVolume, estimated: false };
+  }
+  if (!profile.cachedVolume) {
+    profile.cachedVolume = estimateProfileVolume(profile);
+  }
+  return profile.cachedVolume;
+}
+
+async function resolveSlotProfile(slot) {
+  slot.renderProfile = await resolveProfile(slot.profile);
+}
+
+async function resolveProfile(profile) {
+  if (!profile.iccPath) return profile;
+  if (profile.resolvedProfile) return profile.resolvedProfile;
+  if (profile.loadFailed) return profile.fallbackProfile;
+  try {
+    const response = await fetch(profile.iccPath);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    const parsed = parseICCProfile(buffer, profile.name);
+    parsed.name = profile.name;
+    parsed.meta = `${parsed.meta} bundled ICC profile`;
+    parsed.referenceVolume = profile.referenceVolume;
+    profile.resolvedProfile = parsed;
+    return parsed;
+  } catch (error) {
+    profile.loadFailed = true;
+    profile.fallbackProfile.meta = "CMYK reference profile from published CRPC Lab anchors; bundled ICC unavailable in this browser context";
+    showStatus(`${profile.name} is using reference fallback data because the bundled ICC could not be loaded.`, true);
+    return profile.fallbackProfile;
+  }
+}
+
+function estimateProfileVolume(profile) {
+  const cellSize = profile.channels >= 4 ? 5 : 4;
+  const steps = profile.channels > 4 ? 5 : profile.channels === 4 ? 9 : 17;
+  const occupied = new Set();
+  const sample = (device) => {
+    const lab = profileToLab(profile, device);
+    const key = [
+      Math.floor(clamp(lab[0], 0, 100) / cellSize),
+      Math.floor((clamp(lab[1], -128, 127) + 128) / cellSize),
+      Math.floor((clamp(lab[2], -128, 127) + 128) / cellSize)
+    ].join(",");
+    occupied.add(key);
+  };
+
+  forEachGridPoint(profile.channels, steps, (device) => sample(device));
+
+  return {
+    value: occupied.size * cellSize ** 3,
+    estimated: true
+  };
+}
+
+function formatVolume(volume) {
+  const prefix = volume.estimated ? "~" : "";
+  return `${prefix}${Math.round(volume.value).toLocaleString()}`;
 }
 
 function updateAxisLabels(matrix) {
@@ -537,24 +869,24 @@ function parseICCProfile(buffer, filename) {
 
   const colorSpace = readAscii(view, 16, 4).trim();
   const pcs = readAscii(view, 20, 4).trim();
-  if (colorSpace !== "RGB" && colorSpace !== "CMYK") {
-    throw new Error(`This profile uses ${colorSpace || "non-RGB/CMYK"} data. This visualizer currently supports RGB and CMYK ICC profiles.`);
-  }
-
   const tags = readTags(view);
   const name = readProfileName(view, tags) || filename || "Loaded ICC profile";
   const version = formatICCVersion(view);
   const lutTag = tags.A2B1 || tags.A2B0 || tags.A2B2;
+  const nColorChannels = colorSpaceToChannels(colorSpace);
 
-  if (colorSpace === "CMYK") {
+  if (colorSpace !== "RGB") {
     if (!lutTag) {
-      throw new Error("This CMYK profile does not include an A2B device-to-Lab transform.");
+      throw new Error(`This ${colorSpace || "device"} profile does not include an A2B device-to-Lab transform.`);
+    }
+    if (!nColorChannels) {
+      throw new Error(`This profile uses ${colorSpace || "an unsupported"} data. This visualizer supports RGB matrix/LUT profiles plus CMYK and n-color LUT profiles.`);
     }
     return {
       name,
-      meta: `${version} CMYK ${readAscii(view, lutTag.offset, 4).trim()} LUT profile`,
-      space: "CMYK",
-      channels: 4,
+      meta: `${version} ${formatColorSpaceLabel(colorSpace)} (${colorSpace}) ${readAscii(view, lutTag.offset, 4).trim()} LUT profile`,
+      space: colorSpace,
+      channels: nColorChannels,
       pcs,
       transform: readA2BTransform(view, lutTag, pcs)
     };
@@ -591,6 +923,20 @@ function parseICCProfile(buffer, filename) {
       readTRCTag(view, tags.bTRC)
     ]
   };
+}
+
+function colorSpaceToChannels(colorSpace) {
+  if (colorSpace === "CMYK") return 4;
+  const match = colorSpace.match(/^([2-9A-F])CLR$/);
+  if (!match) return 0;
+  const value = match[1];
+  return /^[A-F]$/.test(value) ? value.charCodeAt(0) - 55 : Number(value);
+}
+
+function formatColorSpaceLabel(colorSpace) {
+  const channels = colorSpaceToChannels(colorSpace);
+  if (channels && colorSpace !== "CMYK") return `${channels}-color`;
+  return colorSpace || "device";
 }
 
 function readTags(view) {
@@ -904,7 +1250,7 @@ function profileToLab(profile, device) {
   return rgbToLab(profile, device[0], device[1], device[2]);
 }
 
-function profileToDisplayColor(profile, device) {
+function profileToDisplayColor(profile, device, lab) {
   if (profile.space === "CMYK") {
     const c = device[0];
     const m = device[1];
@@ -916,7 +1262,45 @@ function profileToDisplayColor(profile, device) {
       (1 - y) * (1 - k)
     ].map((value) => clamp(value, 0, 1));
   }
+  if (profile.channels !== 3 || profile.transform) {
+    return labToDisplayRgb(lab);
+  }
   return [device[0], device[1], device[2]];
+}
+
+function labToDisplayRgb(lab) {
+  const xyz = labToXyz(lab);
+  const d65 = [
+    0.9555766 * xyz[0] - 0.0230393 * xyz[1] + 0.0631636 * xyz[2],
+    -0.0282895 * xyz[0] + 1.0099416 * xyz[1] + 0.0210077 * xyz[2],
+    0.0122982 * xyz[0] - 0.0204830 * xyz[1] + 1.3299098 * xyz[2]
+  ];
+  const linear = [
+    3.2404542 * d65[0] - 1.5371385 * d65[1] - 0.4985314 * d65[2],
+    -0.9692660 * d65[0] + 1.8760108 * d65[1] + 0.0415560 * d65[2],
+    0.0556434 * d65[0] - 0.2040259 * d65[1] + 1.0572252 * d65[2]
+  ];
+  return linear.map((value) => linearToSrgb(clamp(value, 0, 1)));
+}
+
+function labToXyz(lab) {
+  const fy = (lab[0] + 16) / 116;
+  const fx = fy + lab[1] / 500;
+  const fz = fy - lab[2] / 200;
+  return [
+    D50[0] * labFInverse(fx),
+    D50[1] * labFInverse(fy),
+    D50[2] * labFInverse(fz)
+  ];
+}
+
+function labFInverse(t) {
+  const delta = 6 / 29;
+  return t > delta ? t ** 3 : 3 * delta * delta * (t - 4 / 29);
+}
+
+function linearToSrgb(value) {
+  return value <= 0.0031308 ? 12.92 * value : 1.055 * value ** (1 / 2.4) - 0.055;
 }
 
 function labToScene(lab) {
@@ -1124,4 +1508,18 @@ function multiply(a, b) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "");
+  const value = Number.parseInt(clean, 16);
+  return [
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255
+  ];
+}
+
+function rgbToHex(rgb) {
+  return `#${rgb.map((value) => Math.round(clamp(value, 0, 1) * 255).toString(16).padStart(2, "0")).join("")}`;
 }
