@@ -18,66 +18,70 @@
         </div>
 
         <div class="controls">
-          <div class="profile-controls">
-            <label class="control">
-              <span>Profile 1</span>
-              <select id="presetSelect1"></select>
-            </label>
+          <div class="profile-stack">
+            <div class="profile-controls">
+              <label class="control">
+                <span>Profile 1</span>
+                <select id="presetSelect1"></select>
+              </label>
 
-            <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile for Profile 1">
-              <input id="profileInput1" type="file" accept=".icc,.icm,application/vnd.iccprofile">
-              <span>Load ICC</span>
-            </label>
+              <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile for Profile 1">
+                <input id="profileInput1" type="file" accept=".icc,.icm,application/vnd.iccprofile">
+                <span>Load ICC</span>
+              </label>
 
-            <label class="control mini">
-              <span>Opacity</span>
-              <input id="opacityRange1" type="range" min="0.05" max="1" step="0.05" value="0.5">
-            </label>
+              <label class="control mini">
+                <span>Opacity</span>
+                <input id="opacityRange1" type="range" min="0.05" max="1" step="0.05" value="0.5">
+              </label>
 
-            <label class="toggle-control" title="Use a solid color for Profile 1">
-              <input id="solidToggle1" type="checkbox">
-              <span>Solid</span>
-            </label>
+              <label class="toggle-control" title="Use a solid color for Profile 1">
+                <input id="solidToggle1" type="checkbox">
+                <span>Solid</span>
+              </label>
 
-            <label class="color-control" title="Profile 1 solid color">
-              <input id="solidColor1" type="color" value="#42c7b8">
-            </label>
+              <label class="color-control" title="Profile 1 solid color">
+                <input id="solidColor1" type="color" value="#42c7b8">
+              </label>
+            </div>
+
+            <div class="profile-controls">
+              <label class="control">
+                <span>Profile 2</span>
+                <select id="presetSelect2"></select>
+              </label>
+
+              <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile for Profile 2">
+                <input id="profileInput2" type="file" accept=".icc,.icm,application/vnd.iccprofile">
+                <span>Load ICC</span>
+              </label>
+
+              <label class="control mini">
+                <span>Opacity</span>
+                <input id="opacityRange2" type="range" min="0.05" max="1" step="0.05" value="0.5">
+              </label>
+
+              <label class="toggle-control" title="Use a solid color for Profile 2">
+                <input id="solidToggle2" type="checkbox">
+                <span>Solid</span>
+              </label>
+
+              <label class="color-control" title="Profile 2 solid color">
+                <input id="solidColor2" type="color" value="#e4b84b">
+              </label>
+            </div>
           </div>
 
-          <div class="profile-controls">
-            <label class="control">
-              <span>Profile 2</span>
-              <select id="presetSelect2"></select>
+          <div class="view-controls">
+            <label class="control compact">
+              <span>Detail</span>
+              <input id="detailRange" type="range" min="9" max="33" step="2" value="23">
             </label>
 
-            <label class="button file-button" title="Load an ICC or ICM RGB/CMYK profile for Profile 2">
-              <input id="profileInput2" type="file" accept=".icc,.icm,application/vnd.iccprofile">
-              <span>Load ICC</span>
-            </label>
-
-            <label class="control mini">
-              <span>Opacity</span>
-              <input id="opacityRange2" type="range" min="0.05" max="1" step="0.05" value="0.5">
-            </label>
-
-            <label class="toggle-control" title="Use a solid color for Profile 2">
-              <input id="solidToggle2" type="checkbox">
-              <span>Solid</span>
-            </label>
-
-            <label class="color-control" title="Profile 2 solid color">
-              <input id="solidColor2" type="color" value="#e4b84b">
-            </label>
-          </div>
-
-          <label class="control compact">
-            <span>Detail</span>
-            <input id="detailRange" type="range" min="9" max="33" step="2" value="23">
-          </label>
-
-          <div class="segmented" role="radiogroup" aria-label="Render mode">
-            <button id="surfaceMode" class="active" type="button" aria-pressed="true">Surface</button>
-            <button id="pointsMode" type="button" aria-pressed="false">Points</button>
+            <div class="segmented" role="radiogroup" aria-label="Render mode">
+              <button id="surfaceMode" class="active" type="button" aria-pressed="true">Surface</button>
+              <button id="pointsMode" type="button" aria-pressed="false">Points</button>
+            </div>
           </div>
         </div>
       </section>
@@ -91,31 +95,32 @@
           <span id="labelPosB">+b*</span>
           <span id="labelNegB">-b*</span>
         </div>
-        <div class="hud">
-          <div class="profile-readouts">
-            <div>
-              <strong id="profileName1">CGATS21 CRPC-6</strong>
-              <span id="profileMeta1">CMYK reference profile from published CRPC Lab anchors</span>
-              <span id="profileVolume1">Volume: calculating...</span>
-            </div>
-            <div id="profileReadout2">
-              <strong id="profileName2">None</strong>
-              <span id="profileMeta2">Comparison disabled</span>
-              <span id="profileVolume2">Volume: --</span>
-            </div>
-          </div>
-          <dl>
-            <div><dt>L*</dt><dd id="lRange">0-100</dd></div>
-            <div><dt>a*</dt><dd id="aRange">-86-98</dd></div>
-            <div><dt>b*</dt><dd id="bRange">-108-95</dd></div>
-          </dl>
-        </div>
         <div class="legend" aria-hidden="true">
           <span>L*</span>
           <span>a*</span>
           <span>b*</span>
         </div>
         <div id="status" class="status" role="status"></div>
+      </section>
+
+      <section class="profile-info-panel" aria-label="Profile information">
+        <article class="profile-info-card">
+          <div>
+            <strong id="profileInfoName1">CGATS21 CRPC-6</strong>
+            <span id="profileInfoMeta1">CMYK reference profile</span>
+          </div>
+          <span id="profileInfoVolume1">Volume: calculating...</span>
+          <pre id="profileInfoSamples1">White: calculating...</pre>
+        </article>
+
+        <article class="profile-info-card muted-card">
+          <div>
+            <strong id="profileInfoName2">None</strong>
+            <span id="profileInfoMeta2">Comparison disabled</span>
+          </div>
+          <span id="profileInfoVolume2">Volume: --</span>
+          <pre id="profileInfoSamples2">No comparison profile selected.</pre>
+        </article>
       </section>
     </main>
 

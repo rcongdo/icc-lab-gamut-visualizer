@@ -25,23 +25,23 @@ const detailRange = document.getElementById("detailRange");
 const surfaceMode = document.getElementById("surfaceMode");
 const pointsMode = document.getElementById("pointsMode");
 const statusEl = document.getElementById("status");
-const profileNameEls = [
-  document.getElementById("profileName1"),
-  document.getElementById("profileName2")
+const profileInfoNameEls = [
+  document.getElementById("profileInfoName1"),
+  document.getElementById("profileInfoName2")
 ];
-const profileMetaEls = [
-  document.getElementById("profileMeta1"),
-  document.getElementById("profileMeta2")
+const profileInfoMetaEls = [
+  document.getElementById("profileInfoMeta1"),
+  document.getElementById("profileInfoMeta2")
 ];
-const profileVolumeEls = [
-  document.getElementById("profileVolume1"),
-  document.getElementById("profileVolume2")
+const profileInfoVolumeEls = [
+  document.getElementById("profileInfoVolume1"),
+  document.getElementById("profileInfoVolume2")
 ];
-const profileReadout2 = document.getElementById("profileReadout2");
+const profileInfoSamplesEls = [
+  document.getElementById("profileInfoSamples1"),
+  document.getElementById("profileInfoSamples2")
+];
 const profileSummaryEl = document.getElementById("profileSummary");
-const lRangeEl = document.getElementById("lRange");
-const aRangeEl = document.getElementById("aRange");
-const bRangeEl = document.getElementById("bRange");
 const axisLabelEls = {
   l: document.getElementById("labelL"),
   posA: document.getElementById("labelPosA"),
@@ -301,7 +301,6 @@ async function rebuildProfiles() {
     uploadGeometry(slot);
     updateProfileText(slot, index);
   });
-  updateCombinedRanges();
   updateProfileSummary();
   needsDraw = true;
 }
@@ -724,12 +723,13 @@ function forEachGridPoint(channels, steps, callback) {
 
 function updateProfileText(slot, index) {
   const profile = slot.renderProfile;
-  profileNameEls[index].textContent = slot.profile.name;
-  profileMetaEls[index].textContent = profile.meta;
-  profileVolumeEls[index].textContent = profile.disabled ? "Volume: --" : `Volume: ${formatVolume(profileVolume(profile))} cubic Lab units`;
-  if (index === 1) {
-    profileReadout2.classList.toggle("disabled", profile.disabled);
-  }
+  const volumeText = profile.disabled ? "Volume: --" : `Volume: ${formatVolume(profileVolume(profile))} cubic Lab units`;
+  profileInfoNameEls[index].textContent = slot.profile.name;
+  profileInfoMetaEls[index].textContent = profile.meta;
+  profileInfoVolumeEls[index].textContent = volumeText;
+  profileInfoSamplesEls[index].textContent = profile.disabled ? "No profile selected." : formatProfileLabSamples(profile);
+  const infoCard = profileInfoNameEls[index].closest ? profileInfoNameEls[index].closest(".profile-info-card") : null;
+  if (infoCard) infoCard.classList.toggle("muted-card", profile.disabled);
 }
 
 function updateProfileSummary() {
@@ -741,28 +741,6 @@ function updateProfileSummary() {
   profileSummaryEl.textContent = active.length > 1
     ? `${active[0]} compared with ${active[1]} in CIE Lab`
     : `${active[0]} shown as a rotatable CIE Lab gamut`;
-}
-
-function updateCombinedRanges() {
-  const ranges = {
-    l: [Infinity, -Infinity],
-    a: [Infinity, -Infinity],
-    b: [Infinity, -Infinity]
-  };
-  profileSlots.forEach((slot) => {
-    if (!slot.geometry) return;
-    mergeRange(ranges.l, slot.geometry.ranges.l);
-    mergeRange(ranges.a, slot.geometry.ranges.a);
-    mergeRange(ranges.b, slot.geometry.ranges.b);
-  });
-  lRangeEl.textContent = isFinite(ranges.l[0]) ? formatRange(ranges.l) : "--";
-  aRangeEl.textContent = isFinite(ranges.a[0]) ? formatRange(ranges.a) : "--";
-  bRangeEl.textContent = isFinite(ranges.b[0]) ? formatRange(ranges.b) : "--";
-}
-
-function mergeRange(target, source) {
-  target[0] = Math.min(target[0], source[0]);
-  target[1] = Math.max(target[1], source[1]);
 }
 
 function profileVolume(profile) {
@@ -826,6 +804,43 @@ function estimateProfileVolume(profile) {
 function formatVolume(volume) {
   const prefix = volume.estimated ? "~" : "";
   return `${prefix}${Math.round(volume.value).toLocaleString()}`;
+}
+
+function formatProfileLabSamples(profile) {
+  return profileLabSamples(profile)
+    .map((sample) => `${sample.label}: ${formatLab(sample.lab)}`)
+    .join("\n");
+}
+
+function profileLabSamples(profile) {
+  const samples = [];
+  const white = whitePointDevice(profile);
+  samples.push({ label: "White", lab: profileToLab(profile, white) });
+  primaryLabels(profile).forEach((label, index) => {
+    const device = Array(profile.channels).fill(0);
+    device[index] = 1;
+    samples.push({ label, lab: profileToLab(profile, device) });
+  });
+  return samples;
+}
+
+function whitePointDevice(profile) {
+  if (profile.space === "RGB") return Array(profile.channels).fill(1);
+  return Array(profile.channels).fill(0);
+}
+
+function primaryLabels(profile) {
+  if (profile.space === "RGB") return ["R", "G", "B"];
+  if (profile.space === "CMYK") return ["C", "M", "Y", "K"];
+  return Array.from({ length: profile.channels }, (_, index) => `Ch ${index + 1}`);
+}
+
+function formatLab(lab) {
+  return `L* ${formatLabNumber(lab[0])}, a* ${formatLabNumber(lab[1])}, b* ${formatLabNumber(lab[2])}`;
+}
+
+function formatLabNumber(value) {
+  return Number(value).toFixed(1);
 }
 
 function updateAxisLabels(matrix) {
@@ -1413,10 +1428,6 @@ function updateRanges(ranges, lab) {
   ranges.a[1] = Math.max(ranges.a[1], lab[1]);
   ranges.b[0] = Math.min(ranges.b[0], lab[2]);
   ranges.b[1] = Math.max(ranges.b[1], lab[2]);
-}
-
-function formatRange(range) {
-  return `${Math.round(range[0])} to ${Math.round(range[1])}`;
 }
 
 function showStatus(message, isError = false) {

@@ -37,7 +37,7 @@ input {
 
 .app {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto;
   width: 100vw;
   height: 100vh;
 }
@@ -87,16 +87,31 @@ p {
 }
 
 .controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(560px, 760px) auto;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 14px;
+}
+
+.profile-stack {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
 }
 
 .profile-controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) 104px 104px 78px 42px;
   align-items: end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.view-controls {
+  display: grid;
+  align-items: end;
+  justify-items: end;
   gap: 8px;
 }
 
@@ -232,6 +247,62 @@ select:hover,
     #0d0e12;
 }
 
+.profile-info-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--line);
+  background: rgba(17, 18, 22, 0.98);
+}
+
+.profile-info-card {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.8fr) auto minmax(260px, 1.4fr);
+  align-items: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.profile-info-card:nth-child(2) {
+  border-left-color: var(--accent-2);
+}
+
+.profile-info-card.muted-card {
+  opacity: 0.62;
+}
+
+.profile-info-card strong,
+.profile-info-card span {
+  display: block;
+}
+
+.profile-info-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.profile-info-card span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-info-card pre {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+}
+
 #gamutCanvas {
   display: block;
   width: 100%;
@@ -242,91 +313,6 @@ select:hover,
 
 #gamutCanvas:active {
   cursor: grabbing;
-}
-
-.hud {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  display: grid;
-  gap: 14px;
-  width: min(340px, calc(100% - 36px));
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(15, 16, 21, 0.72);
-  backdrop-filter: blur(14px);
-  pointer-events: none;
-}
-
-.hud strong,
-.hud span {
-  display: block;
-}
-
-.profile-readouts {
-  display: grid;
-  gap: 10px;
-}
-
-.profile-readouts > div {
-  min-width: 0;
-  padding-left: 10px;
-  border-left: 3px solid var(--accent);
-}
-
-.profile-readouts > div:nth-child(2) {
-  border-left-color: var(--accent-2);
-}
-
-.profile-readouts > div.disabled {
-  opacity: 0.58;
-}
-
-.hud strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-}
-
-.hud span {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 0;
-}
-
-dl div {
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.04);
-}
-
-dt,
-dd {
-  margin: 0;
-}
-
-dt {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-dd {
-  margin-top: 3px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
 }
 
 .legend {
@@ -431,6 +417,28 @@ dd {
   color: var(--danger);
 }
 
+@media (max-width: 1320px) {
+  .profile-info-card {
+    grid-template-columns: minmax(160px, 0.8fr) minmax(150px, auto) minmax(250px, 1fr);
+  }
+}
+
+@media (max-width: 1080px) {
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .controls {
+    grid-template-columns: 1fr auto;
+    justify-content: stretch;
+  }
+
+  .profile-info-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 760px) {
   body {
     overflow: auto;
@@ -447,20 +455,21 @@ dd {
   }
 
   .controls {
+    grid-template-columns: 1fr;
     justify-content: stretch;
   }
 
   .profile-controls {
-    flex: 1 1 100%;
-  }
-
-  .control,
-  .button,
-  .segmented {
-    flex: 1 1 160px;
+    grid-template-columns: minmax(180px, 1fr) 104px 96px 78px 42px;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .viewer-shell {
     min-height: 680px;
+  }
+
+  .profile-info-card {
+    grid-template-columns: 1fr;
   }
 }

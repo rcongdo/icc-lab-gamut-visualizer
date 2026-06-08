@@ -56,7 +56,7 @@ function makeGl() {
 
 async function loadApp() {
   const gl = makeGl();
-  const ids = ['gamutCanvas','presetSelect1','presetSelect2','profileInput1','profileInput2','opacityRange1','opacityRange2','solidToggle1','solidToggle2','solidColor1','solidColor2','detailRange','surfaceMode','pointsMode','status','profileName1','profileName2','profileMeta1','profileMeta2','profileVolume1','profileVolume2','profileReadout2','profileSummary','lRange','aRange','bRange','labelL','labelPosA','labelNegA','labelPosB','labelNegB'];
+  const ids = ['gamutCanvas','presetSelect1','presetSelect2','profileInput1','profileInput2','opacityRange1','opacityRange2','solidToggle1','solidToggle2','solidColor1','solidColor2','detailRange','surfaceMode','pointsMode','status','profileInfoName1','profileInfoName2','profileInfoMeta1','profileInfoMeta2','profileInfoVolume1','profileInfoVolume2','profileInfoSamples1','profileInfoSamples2','profileSummary','labelL','labelPosA','labelNegA','labelPosB','labelNegB'];
   const elements = Object.fromEntries(ids.map((id) => [id, makeElement(id, gl)]));
   elements.detailRange.value = '9';
   const context = {
@@ -85,6 +85,15 @@ async function loadApp() {
 }
 
 (async () => {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  assert.ok(!html.includes('profile-readouts'), 'legacy profile overlay should be removed');
+  assert.ok(!html.includes('profileName1'), 'legacy profile name overlay should be removed');
+  assert.ok(!html.includes('profileVolume1'), 'legacy profile volume overlay should be removed');
+  assert.ok(!html.includes('class="hud"'), 'compact Lab range HUD should be removed');
+  assert.ok(!html.includes('id="lRange"'), 'compact L range should be removed');
+  assert.ok(!html.includes('id="aRange"'), 'compact a range should be removed');
+  assert.ok(!html.includes('id="bRange"'), 'compact b range should be removed');
+
   const expectedFiles = Array.from({ length: 7 }, (_, index) => path.join(root, 'profiles', `CGATS21_CRPC${index + 1}.icc`));
   for (const file of expectedFiles) assert.ok(fs.existsSync(file), `${path.basename(file)} should be bundled`);
 
@@ -93,14 +102,22 @@ async function loadApp() {
   assert.deepStrictEqual(elements.presetSelect1.options.slice(0, 7).map((option) => option.textContent), [
     'CGATS21 CRPC-1', 'CGATS21 CRPC-2', 'CGATS21 CRPC-3', 'CGATS21 CRPC-4', 'CGATS21 CRPC-5', 'CGATS21 CRPC-6', 'CGATS21 CRPC-7'
   ]);
-  assert.match(elements.profileMeta1.textContent, /ICC/i);
-  assert.strictEqual(elements.profileVolume1.textContent, 'Volume: 389,023 cubic Lab units');
+  assert.strictEqual(elements.profileInfoName1.textContent, 'CGATS21 CRPC-6');
+  assert.match(elements.profileInfoMeta1.textContent, /ICC/i);
+  assert.strictEqual(elements.profileInfoVolume1.textContent, 'Volume: 389,023 cubic Lab units');
+  assert.match(elements.profileInfoSamples1.textContent, /White: L\*/);
+  assert.match(elements.profileInfoSamples1.textContent, /C: L\*/);
+  assert.match(elements.profileInfoSamples1.textContent, /M: L\*/);
+  assert.match(elements.profileInfoSamples1.textContent, /Y: L\*/);
+  assert.match(elements.profileInfoSamples1.textContent, /K: L\*/);
 
   elements.presetSelect2.value = 'crpc7';
   await elements.presetSelect2.listeners.change[0]();
   await new Promise((resolve) => setImmediate(resolve));
-  assert.match(elements.profileMeta2.textContent, /ICC/i);
-  assert.strictEqual(elements.profileVolume2.textContent, 'Volume: 525,551 cubic Lab units');
+  assert.match(elements.profileInfoMeta2.textContent, /ICC/i);
+  assert.strictEqual(elements.profileInfoVolume2.textContent, 'Volume: 525,551 cubic Lab units');
+  assert.match(elements.profileInfoSamples2.textContent, /White: L\*/);
+  assert.match(elements.profileInfoSamples2.textContent, /C: L\*/);
   assert.match(elements.profileSummary.textContent, /compared with CGATS21 CRPC-7/);
 
   assert.strictEqual(app.presets.crpc1.iccPath, './profiles/CGATS21_CRPC1.icc');
@@ -108,8 +125,8 @@ async function loadApp() {
   for (let index = 1; index <= 7; index++) {
     elements.presetSelect1.value = `crpc${index}`;
     await elements.presetSelect1.listeners.change[0]();
-    assert.match(elements.profileMeta1.textContent, /ICC/i, `CRPC-${index} should use its bundled ICC`);
-    assert.match(elements.profileVolume1.textContent, /cubic Lab units/, `CRPC-${index} should show volume`);
+    assert.match(elements.profileInfoMeta1.textContent, /ICC/i, `CRPC-${index} should use its bundled ICC`);
+    assert.match(elements.profileInfoVolume1.textContent, /cubic Lab units/, `CRPC-${index} should show volume`);
   }
 
   assert.strictEqual(elements.opacityRange1.value, '0.5');
